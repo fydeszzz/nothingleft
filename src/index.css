@@ -1,0 +1,41 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #FAF7F2;
+  --bg2: #F2EDE4;
+  --surface: #FFFCF8;
+  --border: #E8DFD0;
+  --text: #2A1F14;
+  --text2: #6B5744;
+  --accent: oklch(52% 0.19 245);
+  --accent2: oklch(52% 0.14 148);
+  --accent-light: oklch(94% 0.05 245);
+  --accent2-light: oklch(93% 0.06 148);
+  --urgent: oklch(55% 0.16 22);
+  --urgent-light: oklch(94% 0.06 22);
+  --shadow: 0 2px 16px rgba(42,31,20,0.08);
+  --shadow-md: 0 6px 32px rgba(42,31,20,0.12);
+  --radius: 14px;
+  --font-display: 'Lora', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#root { min-height: 100vh; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@keyframes fadeScaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}

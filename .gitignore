@@ -1,0 +1,30 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
+Thumbs.db
+/images/
+.env.*
+!.env.example
+
+# Build
+dist/
+build/
+.vite/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# system
+Thumbs.db
+desktop.ini
+
+# dev temp
+*.local
+coverage/

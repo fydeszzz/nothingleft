@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nothing Left — Give what you have. Help where it matters.</title>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=Anton&family=Gloria+Hallelujah&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root {
+    --bg: #FAF7F2;
+    --bg2: #F2EDE4;
+    --surface: #FFFCF8;
+    --border: #E8DFD0;
+    --text: #2A1F14;
+    --text2: #6B5744;
+    --accent: oklch(52% 0.19 245);
+    --accent2: oklch(52% 0.14 148);
+    --accent-light: oklch(94% 0.05 245);
+    --accent2-light: oklch(93% 0.06 148);
+    --urgent: oklch(55% 0.16 22);
+    --urgent-light: oklch(94% 0.06 22);
+    --shadow: 0 2px 16px rgba(42,31,20,0.08);
+    --shadow-md: 0 6px 32px rgba(42,31,20,0.12);
+    --radius: 14px;
+    --font-display: 'Lora', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  #root { min-height: 100vh; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+</style>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="hero-scenes.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+function safeUrl(url) {
+  try {
+    const u = new URL(url);
+    return ['https:', 'http:'].includes(u.protocol) ? u.href : null;
+  } catch { return null; }
+}
+function safeTel(phone) {
+  return /^[\d\s\-().+]+$/.test(phone ?? '') ? `tel:${phone}` : null;
+}
+
+// Pin icon component
+function Pin({ size = 18, inline = false, light = false }) {
+  return (
+    <img src="images/pin.png" alt="" style={{
+      width: size, height: size, objectFit: "contain",
+      display: inline ? "inline-block" : "inline-block",
+      verticalAlign: inline ? "middle" : "middle",
+      filter: light ? "brightness(0) invert(1)" : "none",
+      flexShrink: 0,
+    }} />
+  );
+}
+
+// Colorful crayon-drawn logo (3-year-old style)
+const LOGO_COLORS = ["#E63946","#F77F00","#FFB703","#43AA8B","#118AB2","#3A86FF","#8338EC","#F15BB5","#E63946","#06A77D","#F77F00"];
+const LOGO_ROTATIONS = [-6, 4, -3, 7, -5, 2, -8, 5, -4, 6, -7];
+const LOGO_SIZES = [1.05, 0.95, 1.08, 0.92, 1.02, 1.0, 0.98, 1.06, 0.94, 1.04, 0.98];
+
+function CrayonLetter({ ch, color, rot, sz, fs }) {
+  return (
+    <span style={{
+      display: "inline-block",
+      color: color,
+      transform: `rotate(${rot}deg)`,
+      fontSize: typeof fs === "string" ? `calc(${fs} * ${sz})` : fs * sz,
+      lineHeight: 1,
+      margin: "0 0.01em",
+      textShadow: `
+        0.5px 0 0 ${color},
+        -0.5px 0 0 ${color},
+        0 0.5px 0 ${color},
+        0 -0.5px 0 ${color}
+      `,
+      filter: "drop-shadow(0 2px 0 rgba(0,0,0,0.08))",
+    }}>{ch}</span>
+  );
+}
+
+function ColorfulLogo({ size = 24, big = false }) {
+  const word1 = "Nothing", word2 = "Left";
+  const fs = big ? "clamp(64px, 14vw, 200px)" : size;
+  const fontFam = "'Sue Ellen Francisco', 'Gloria Hallelujah', cursive";
+
+  if (big) {
+    return (
+      <h1 style={{
+        fontFamily: fontFam,
+        fontSize: fs, fontWeight:400, lineHeight:0.95,
+        margin:0, transform:"rotate(-2deg)",
+        textShadow:"0 4px 24px rgba(0,0,0,0.35)",
+        textAlign:"center",
+        letterSpacing: "0.02em",
+      }}>
+        <span style={{ display:"inline-block" }}>
+          {word1.split("").map((c,i)=>(
+            <CrayonLetter key={"a"+i} ch={c} color={LOGO_COLORS[i]} rot={LOGO_ROTATIONS[i]} sz={LOGO_SIZES[i]} fs={fs} />
+          ))}
+        </span><br/>
+        <span style={{ display:"inline-block" }}>
+          {word2.split("").map((c,i)=>(
+            <CrayonLetter key={"b"+i} ch={c} color={LOGO_COLORS[i+word1.length]} rot={LOGO_ROTATIONS[i+word1.length]} sz={LOGO_SIZES[i+word1.length]} fs={fs} />
+          ))}
+        </span>
+      </h1>
+    );
+  }
+  return (
+    <span style={{
+      fontFamily: fontFam,
+      fontWeight:400, fontSize: size, lineHeight:1,
+      transform:"rotate(-2deg)", display:"inline-block",
+      letterSpacing: "0.02em",
+    }}>
+      <span>{word1.split("").map((c,i)=>(
+        <CrayonLetter key={"a"+i} ch={c} color={LOGO_COLORS[i]} rot={LOGO_ROTATIONS[i]*0.5} sz={LOGO_SIZES[i]} fs={size} />
+      ))}</span>
+      <span style={{ display:"inline-block", width:"0.3em" }}></span>
+      <span>{word2.split("").map((c,i)=>(
+        <CrayonLetter key={"b"+i} ch={c} color={LOGO_COLORS[i+word1.length]} rot={LOGO_ROTATIONS[i+word1.length]*0.5} sz={LOGO_SIZES[i+word1.length]} fs={size} />
+      ))}</span>
+    </span>
+  );
+}
+
+
+const CATEGORIES = [
+  { id: "all",        label: "All",         color: null        },
+  { id: "food",       label: "Food",        color: "#E63946"   },
+  { id: "clothes",    label: "Clothes",     color: "#3A86FF"   },
+  { id: "household",  label: "Household",   color: "#F77F00"   },
+  { id: "toiletries", label: "Toiletries",  color: "#43AA8B"   },
+  { id: "toys",       label: "Toys",        color: "#F15BB5"   },
+  { id: "electronics",label: "Electronics", color: "#8338EC"   },
+  { id: "furniture",  label: "Furniture",   color: "#FFB703"   },
+];
+
+function hexToRgba(hex, a) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function CapacityBar({ pct, urgent }) {
+  const color = urgent ? "var(--urgent)" : pct > 70 ? "var(--accent2)" : "var(--accent)";
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+        <span style={{ fontSize:11, color:"var(--text2)", fontWeight:500 }}>
+          {urgent ? "🔥 Urgently needed" : "Capacity"}
+        </span>
+        <span style={{ fontSize:11, color, fontWeight:600 }}>{pct}%</span>
+      </div>
+      <div style={{ height:5, borderRadius:99, background:"var(--border)", overflow:"hidden" }}>
+        <div style={{ height:"100%", width:`${pct}%`, background:color, borderRadius:99,
+          transition:"width 0.6s ease" }}></div>
+      </div>
+    </div>
+  );
+}
+
+function Badge({ label, color="accent", hexColor }) {
+  if (hexColor) {
+    return (
+      <span style={{
+        display:"inline-flex", alignItems:"center", gap:3,
+        padding:"2px 8px", borderRadius:99, fontSize:11, fontWeight:600,
+        background: hexToRgba(hexColor, 0.12), color: hexColor,
+        border: `1px solid ${hexToRgba(hexColor, 0.35)}`,
+        whiteSpace:"nowrap",
+      }}>{label}</span>
+    );
+  }
+  const colors = {
+    accent: { bg:"var(--accent-light)", text:"var(--accent)" },
+    green:  { bg:"var(--accent2-light)", text:"var(--accent2)" },
+    urgent: { bg:"var(--urgent-light)", text:"var(--urgent)" },
+    neutral:{ bg:"var(--bg2)", text:"var(--text2)" },
+  };
+  const c = colors[color] || colors.neutral;
+  return (
+    <span style={{
+      display:"inline-flex", alignItems:"center", gap:3,
+      padding:"2px 8px", borderRadius:99, fontSize:11, fontWeight:500,
+      background:c.bg, color:c.text, whiteSpace:"nowrap",
+    }}>{label}</span>
+  );
+}
+
+function CategoryChip({ cat, active, onClick }) {
+  const col = cat.color;
+  return (
+    <button onClick={onClick} style={{
+      display:"inline-flex", alignItems:"center", gap:5,
+      padding:"7px 16px", borderRadius:99, border:"1.5px solid",
+      borderColor: active ? (col || "var(--accent)") : col ? hexToRgba(col, 0.35) : "var(--border)",
+      background: active ? (col || "var(--accent)") : col ? hexToRgba(col, 0.1) : "var(--surface)",
+      color: active ? "#fff" : (col || "var(--text)"),
+      fontSize:15, fontWeight:700, cursor:"pointer",
+      transition:"all 0.15s", whiteSpace:"nowrap",
+      fontFamily:"var(--font-body)",
+    }}>
+      {cat.label}
+    </button>
+  );
+}
+
+// ── Leaflet Map ───────────────────────────────────────────────────────────────
+function MapView({ sites, center, selectedId, onSelect }) {
+  const mapRef = useRef(null);
+  const leafletMap = useRef(null);
+  const markersRef = useRef({});
+
+  const accentColor = "#3B6FD4";
+  const urgentColor = "#C0392B";
+  const neutralColor = "#7A8FA6";
+
+  function makeIcon(color, selected, label) {
+    const size = selected ? 40 : 32;
+    const fs = String(label).length > 1 ? 10 : 12;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size*1.25}" viewBox="0 0 40 50">
+      <filter id="s"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-opacity="0.3"/></filter>
+      <path filter="url(#s)" d="M20 2C11.2 2 4 9.2 4 18c0 12 16 30 16 30S36 30 36 18C36 9.2 28.8 2 20 2z"
+        fill="${color}" stroke="white" stroke-width="2"/>
+      <circle cx="20" cy="17" r="9" fill="white"/>
+      <text x="20" y="21.5" text-anchor="middle" font-size="${fs}" font-weight="800"
+        font-family="system-ui,sans-serif" fill="${color}">${label}</text>
+      ${selected ? `<circle cx="20" cy="17" r="13" fill="none" stroke="white" stroke-width="2" opacity="0.5"/>` : ''}
+    </svg>`;
+    return L.divIcon({
+      html: svg,
+      className: '',
+      iconSize: [size, size * 1.25],
+      iconAnchor: [size/2, size * 1.25],
+      popupAnchor: [0, -(size * 1.25)],
+    });
+  }
+
+  // Init map once
+  useEffect(() => {
+    if (!mapRef.current || leafletMap.current) return;
+    const map = L.map(mapRef.current, {
+      center: [center ? center.lat : 40.740, center ? center.lng : -73.990],
+      zoom: 13,
+      zoomControl: true,
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(map);
+    leafletMap.current = map;
+
+    // Style attribution to be small
+    const attr = map.getContainer().querySelector('.leaflet-control-attribution');
+    if (attr) attr.style.fontSize = '10px';
+
+    return () => { map.remove(); leafletMap.current = null; };
+  }, []);
+
+  // Update markers when sites or selectedId changes
+  useEffect(() => {
+    const map = leafletMap.current;
+    if (!map) return;
+
+    // Remove old markers
+    Object.values(markersRef.current).forEach(m => m.remove());
+    markersRef.current = {};
+
+    // "You are here" marker
+    if (center) {
+      const youIcon = L.divIcon({
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:#4A90D9;border:3px solid white;box-shadow:0 0 0 3px rgba(74,144,217,0.3)"></div>`,
+        className: '', iconSize: [14, 14], iconAnchor: [7, 7],
+      });
+      const youMarker = L.marker([center.lat, center.lng], { icon: youIcon, zIndexOffset: 2000 })
+        .addTo(map)
+        .bindTooltip('Your location', { direction: 'top', offset: [0, -10], opacity: 0.97 });
+      markersRef.current['__you'] = youMarker;
+    }
+
+    sites.forEach((site, i) => {
+      const sel = site.id === selectedId;
+      const urgent = site.urgentNeed.length > 0;
+      const color = sel ? accentColor : urgent ? urgentColor : neutralColor;
+      const icon = makeIcon(color, sel, i + 1);
+      const marker = L.marker([site.lat, site.lng], { icon, zIndexOffset: sel ? 1000 : 0 })
+        .addTo(map)
+        .on('click', () => onSelect(site.id));
+
+      // Popup on hover
+      marker.bindTooltip(`${site.name} · ${site.distance}mi`, {
+        direction: 'top', offset: [0, -30], opacity: 0.97,
+      });
+
+      markersRef.current[site.id] = marker;
+    });
+
+    // Pan to selected
+    if (selectedId) {
+      const site = sites.find(s => s.id === selectedId);
+      if (site) map.panTo([site.lat, site.lng], { animate: true, duration: 0.5 });
+    } else if (sites.length) {
+      // Fit all markers
+      const bounds = L.latLngBounds(sites.map(s => [s.lat, s.lng]));
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    }
+  }, [sites, selectedId, center]);
+
+  return (
+    <div style={{ position:"relative", width:"100%", height:"100%" }}>
+      <div ref={mapRef} style={{ width:"100%", height:"100%", borderRadius:"var(--radius)" }}></div>
+    </div>
+  );
+}
+
+// ── Site Card ────────────────────────────────────────────────────────────────
+function SiteCard({ site, selected, onClick, activeCategory, compact, index }) {
+  const isUrgent = site.urgentNeed.includes(activeCategory) ||
+    (activeCategory === "all" && site.urgentNeed.length > 0);
+  const matchScore = activeCategory !== "all"
+    ? site.accepts.includes(activeCategory) ? "Best match" : null
+    : null;
+
+  return (
+    <div onClick={onClick} style={{
+      background:"var(--surface)",
+      border: `1.5px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+      borderRadius:"var(--radius)", padding: compact ? "11px 14px" : "16px",
+      cursor:"pointer", transition:"all 0.18s",
+      boxShadow: selected ? "var(--shadow-md)" : "var(--shadow)",
+      outline: selected ? "3px solid var(--accent-light)" : "none",
+      display:"flex", alignItems:"flex-start", gap:12,
+    }}>
+      {/* Number badge */}
+      <div style={{
+        flexShrink:0, width:30, height:30, borderRadius:99,
+        background: selected ? "var(--accent)" : "var(--accent-light)",
+        color: selected ? "#fff" : "var(--accent)",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        fontSize:13, fontWeight:800, fontFamily:"var(--font-body)",
+        border: `1.5px solid ${selected ? "var(--accent)" : "rgba(59,111,212,0.3)"}`,
+        marginTop:1, letterSpacing:"-0.02em",
+      }}>{index}</div>
+
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+          <div style={{ flex:1, minWidth:0, overflow:"hidden" }}>
+            <span style={{ fontSize: compact?15:18, fontWeight:700, fontFamily:"var(--font-display)",
+              color:"var(--text)", lineHeight:1.25, display:"block" }}>{site.name}</span>
+            {site.address && (
+              <p style={{
+                fontSize:12, color:"var(--text2)", marginTop:3, lineHeight:1.3,
+                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+              }}>{site.address}</p>
+            )}
+            {isUrgent && (
+              <span style={{
+                display:"inline-flex", alignItems:"center", gap:4, marginTop:5,
+                background:"var(--urgent-light)", color:"var(--urgent)",
+                border:"1px solid var(--urgent)", borderRadius:99,
+                fontSize:11, fontWeight:700, padding:"2px 9px", letterSpacing:"0.03em",
+              }}>Urgent need</span>
+            )}
+          </div>
+          <div style={{ flexShrink:0, textAlign:"right" }}>
+            <span style={{ display:"block", fontSize:16, fontWeight:700, color:"var(--accent)",
+              fontFamily:"var(--font-display)" }}>{site.distance}mi</span>
+          </div>
+        </div>
+
+        {!compact && (
+          <>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:10 }}>
+              {matchScore && <Badge label={`✓ ${matchScore}`} color="green" />}
+              {site.accepts.slice(0,3).map(a => {
+                const cat = CATEGORIES.find(c=>c.id===a);
+                return cat ? <Badge key={a} label={cat.label} hexColor={cat.color || undefined} color={cat.color ? undefined : "neutral"} /> : null;
+              })}
+              {site.accepts.length > 3 && <Badge label={`+${site.accepts.length-3} more`} color="neutral" />}
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:10 }}>
+              <span style={{ fontSize:11, color:"var(--text2)" }}>⏰ {site.hours}</span>
+            </div>
+            <CapacityBar pct={site.capacity} urgent={isUrgent} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Site Logo ─────────────────────────────────────────────────────────────────
+function SiteMapPreview({ site }) {
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = L.map(containerRef.current, {
+      center: [site.lat, site.lng], zoom: 15,
+      zoomControl: false, dragging: false, scrollWheelZoom: false,
+      doubleClickZoom: false, boxZoom: false, keyboard: false,
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    const icon = L.divIcon({
+      html: `<div style="width:16px;height:16px;border-radius:50%;background:#3B6FD4;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.35)"></div>`,
+      className: '', iconSize: [16, 16], iconAnchor: [8, 8],
+    });
+    L.marker([site.lat, site.lng], { icon }).addTo(map);
+    mapRef.current = map;
+    return () => { map.remove(); mapRef.current = null; };
+  }, [site.lat, site.lng]);
+  return (
+    <div style={{ width:"100%", height:140, borderRadius:"20px 20px 0 0", overflow:"hidden",
+      borderBottom:"1px solid var(--border)" }}>
+      <div ref={containerRef} style={{ width:"100%", height:"100%" }} />
+    </div>
+  );
+}
+
+// ── Site Detail Drawer ───────────────────────────────────────────────────────
+function SiteDetail({ site, onClose, activeCategory }) {
+  if (!site) return null;
+  const isUrgent = site.urgentNeed.includes(activeCategory) ||
+    (activeCategory === "all" && site.urgentNeed.length > 0);
+
+  return (
+    <div style={{
+      position:"fixed", inset:0, zIndex:10000,
+      display:"flex", alignItems:"center", justifyContent:"center",
+      background:"rgba(42,31,20,0.45)", padding:"16px",
+    }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{
+        background:"var(--surface)", borderRadius:"20px",
+        width:"100%", maxWidth:500,
+        boxShadow:"0 24px 80px rgba(42,31,20,0.25)",
+        maxHeight:"90vh", overflowY:"auto",
+        animation:"fadeScaleIn 0.22s cubic-bezier(0.32,0.72,0,1)",
+      }}>
+        <style>{`@keyframes fadeScaleIn { from { opacity:0; transform:scale(0.95) } to { opacity:1; transform:scale(1) } }`}</style>
+
+        {/* Mini-map banner */}
+        <SiteMapPreview site={site} />
+
+        {/* Handle */}
+        <div style={{ display:"flex", justifyContent:"center", padding:"10px 0 0" }}>
+          <div style={{ width:36,height:4,borderRadius:99,background:"var(--border)" }}></div>
+        </div>
+        <div style={{ padding:"14px 24px 32px" }}>
+          {isUrgent && (
+            <div style={{ background:"var(--urgent-light)", border:"1px solid var(--urgent)",
+              borderRadius:10, padding:"10px 14px", marginBottom:14, display:"flex", gap:8, alignItems:"center" }}>
+              <span style={{ fontSize:18 }}>🔥</span>
+              <div>
+                <p style={{ fontWeight:600, color:"var(--urgent)", fontSize:13 }}>Urgent need right now</p>
+                <p style={{ color:"var(--text2)", fontSize:12, marginTop:2 }}>
+                  This site especially needs: {site.urgentNeed.map(n => {
+                    const c = CATEGORIES.find(cat=>cat.id===n);
+                    return c ? c.label : n;
+                  }).join(", ")}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <h2 style={{ fontFamily:"var(--font-display)", fontSize:22, fontWeight:700, lineHeight:1.2 }}>{site.name}</h2>
+
+          <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap", alignItems:"center" }}>
+            <span style={{ fontSize:13, color:"var(--text2)" }}>{site.hours}</span>
+          </div>
+          {site.address && (
+            <p style={{ fontSize:13, color:"var(--text2)", marginTop:6, display:"flex", alignItems:"center", gap:5 }}>
+              <Pin size={12} inline /> {site.address}
+            </p>
+          )}
+
+          <CapacityBar pct={site.capacity} urgent={isUrgent} />
+
+          <div style={{ marginTop:18 }}>
+            <p style={{ fontSize:12, color:"var(--text2)", fontWeight:600, marginBottom:8, letterSpacing:"0.06em",
+              textTransform:"uppercase" }}>Accepts</p>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+              {site.accepts.map(a => {
+                const cat = CATEGORIES.find(c=>c.id===a);
+                const urgent = site.urgentNeed.includes(a);
+                return cat ? <Badge key={a} label={cat.label} hexColor={cat.color || undefined} color={cat.color ? undefined : "neutral"} /> : null;
+              })}
+            </div>
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:20 }}>
+            <a href={safeTel(site.phone) ?? "#"} style={{
+              display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+              padding:"12px", borderRadius:10, background:"var(--bg2)",
+              color:"var(--text)", textDecoration:"none", fontSize:13, fontWeight:500,
+              border:"1px solid var(--border)",
+            }}>📞 Call</a>
+            <a href={safeUrl(site.website) ?? "#"} target="_blank" rel="noopener noreferrer" style={{
+              display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+              padding:"12px", borderRadius:10, background:"var(--bg2)",
+              color:"var(--text)", textDecoration:"none", fontSize:13, fontWeight:500,
+              border:"1px solid var(--border)",
+            }}>🌐 Website</a>
+            <a href={`https://maps.google.com/?q=${encodeURIComponent(site.address)}`} target="_blank" rel="noopener"
+              style={{
+                gridColumn:"1/-1", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                padding:"14px", borderRadius:10, background:"var(--accent)",
+                color:"#fff", textDecoration:"none", fontSize:14, fontWeight:600,
+              }}><Pin size={16} light /> Get Directions</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Landing / Hero ───────────────────────────────────────────────────────────
+function Landing({ onSearch, geocodeError }) {
+  const [addr, setAddr] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!addr.trim()) return;
+    setError("");
+    setLoading(true);
+    // onSearch is now async — it geocodes and navigates
+    Promise.resolve(onSearch(addr, null)).finally(() => setLoading(false));
+  };
+
+  const handleGPS = () => {
+    setError("");
+    if (!navigator.geolocation) {
+      setError("Geolocation not supported by your browser.");
+      return;
+    }
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
+          .then(r => r.json())
+          .then(d => {
+            const label = d.display_name
+              ? d.display_name.split(",").slice(0, 3).join(",")
+              : "Current location";
+            onSearch(label, { lat: latitude, lng: longitude });
+          })
+          .catch(() => onSearch("Current location", { lat: latitude, lng: longitude }))
+          .finally(() => setLoading(false));
+      },
+      () => {
+        setError("Could not get your location. Please enter an address.");
+        setLoading(false);
+      }
+    );
+  };
+
+  return (
+    <div style={{
+      minHeight:"100vh", display:"flex", flexDirection:"column",
+      background:"var(--bg)",
+    }}>
+      {/* Nav */}
+      <nav style={{ padding:"20px 28px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <ColorfulLogo size={26} />
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button style={{ display:"none" }}>Add my site</button>
+        </div>
+      </nav>
+
+      {/* Hero — full-bleed photo with massive overlaid headline */}
+      <div style={{ position:"relative", width:"100%", height:"min(88vh, 960px)",
+        minHeight:560, overflow:"hidden", background:"#1a1510" }}>
+        <HeroCarousel />
+        {/* Centered massive headline */}
+        <div style={{ position:"absolute", inset:0, zIndex:5,
+          display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+          padding:"0 24px", pointerEvents:"none", textAlign:"center" }}>
+          <ColorfulLogo big />
+          <p style={{
+            fontFamily:"var(--font-display)", fontStyle:"italic",
+            fontSize:"clamp(13px, 1.6vw, 18px)", fontWeight:400,
+            color:"rgba(255,255,255,0.92)", marginTop:18, maxWidth:520,
+            lineHeight:1.5, textShadow:"0 2px 12px rgba(0,0,0,0.45)",
+          }}>
+            Give what you have. Help where it matters.
+          </p>
+        </div>
+      </div>
+
+      {/* Below the fold */}
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center",
+        padding:"56px 24px 80px", textAlign:"center", gap:0 }}>
+        <p style={{ fontSize:"clamp(16px, 2.2vw, 20px)", color:"var(--text)", maxWidth:560,
+          lineHeight:1.5, margin:"0 0 14px 0", textAlign:"center",
+          fontFamily:"var(--font-display)", fontStyle:"italic", fontWeight:500 }}>
+          Your spare today, their smile someday.
+        </p>
+        <p style={{ fontSize:"clamp(13px, 1.6vw, 15px)", color:"var(--text2)", maxWidth:440,
+          lineHeight:1.6, margin:"0 0 32px 0", textAlign:"center" }}>
+          Find a neighborhood drop-off that needs exactly what you have to give — food, clothes, toys, books  
+        </p>
+
+        {/* Search */}
+        <form onSubmit={handleSubmit} style={{ width:"100%", maxWidth:480 }}>
+          <div style={{ display:"flex", gap:8, background:"var(--surface)",
+            border:"1.5px solid var(--border)", borderRadius:14, padding:"6px 6px 6px 16px",
+            boxShadow:"var(--shadow)", alignItems:"center" }}>
+            <Pin size={20} />
+            <input
+              value={addr}
+              onChange={e=>setAddr(e.target.value)}
+              placeholder="Enter your address or zip code..."
+              style={{ flex:1, border:"none", background:"none", outline:"none",
+                fontSize:15, color:"var(--text)", fontFamily:"var(--font-body)",
+                padding:"8px 0" }}
+            />
+            <button type="submit" disabled={loading} style={{
+              flexShrink:0, background:"var(--accent)", color:"#fff",
+              border:"none", borderRadius:10, padding:"10px 20px",
+              fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"var(--font-body)",
+              opacity: loading ? 0.7 : 1, transition:"opacity 0.15s",
+            }}>
+              {loading ? "Searching…" : "Find sites"}
+            </button>
+          </div>
+        </form>
+
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:14 }}>
+          <div style={{ height:1, width:60, background:"var(--border)" }}></div>
+          <span style={{ fontSize:14, color:"var(--text2)" }}>or</span>
+          <div style={{ height:1, width:60, background:"var(--border)" }}></div>
+        </div>
+
+        <button onClick={handleGPS} disabled={loading} style={{
+          marginTop:12, display:"inline-flex", alignItems:"center", gap:6,
+          background:"none", border:"1.5px solid var(--border)", borderRadius:10,
+          padding:"10px 20px", fontSize:13, fontWeight:500, cursor:"pointer",
+          color:"var(--text)", fontFamily:"var(--font-body)", transition:"border-color 0.15s",
+        }}>
+          <span></span> Use my current location
+        </button>
+
+        {/* Error */}
+        {(error || geocodeError) && (
+          <p style={{ marginTop:12, fontSize:13, color:"var(--urgent)", fontWeight:500 }}>
+            ⚠️ {error || geocodeError}
+          </p>
+        )}
+
+        {/* Stats */}
+        <div style={{ display:"flex", gap:32, marginTop:52, flexWrap:"wrap", justifyContent:"center" }}>
+          {[["2,400+","donation sites"], ["12 types","of donations"], ["50 states","covered"]].map(([n,l])=>(
+            <div key={n} style={{ textAlign:"center" }}>
+              <div style={{ fontFamily:"var(--font-display)", fontWeight:700,
+                fontSize:22, color:"var(--text)" }}>{n}</div>
+              <div style={{ fontSize:12, color:"var(--text2)", marginTop:2 }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Overpass / Real Data ─────────────────────────────────────────────────────
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 3958.8;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+function mapOverpassElement(el, center) {
+  const tags = el.tags || {};
+  const lat = parseFloat(el.lat ?? el.center?.lat);
+  const lng = parseFloat(el.lon ?? el.center?.lon);
+  if (!lat || !lng) return null;
+
+  const name = tags.name || tags.operator || "Donation Site";
+  const website = safeUrl(tags.website || tags["contact:website"] || tags.url || "") || "";
+  const phone = tags.phone || tags["contact:phone"] || "";
+  const hours = tags.opening_hours || "Call for hours";
+  const addrParts = [tags["addr:housenumber"], tags["addr:street"]].filter(Boolean);
+  const city = tags["addr:city"] || tags["addr:suburb"] || "";
+  const address = addrParts.length ? `${addrParts.join(" ")}${city ? ", "+city : ""}` : "Address unavailable";
+
+  const accepts = new Set();
+  const amenity = tags.amenity || "", shop = tags.shop || "", sf = tags.social_facility || "";
+  if (amenity==="food_bank" || sf==="food_bank" || sf==="soup_kitchen" || sf==="food_pantry") accepts.add("food");
+  if (shop==="charity") { accepts.add("clothes"); accepts.add("household"); }
+  if (amenity==="clothes_bank" || sf==="clothing_bank") accepts.add("clothes");
+  if (amenity==="reuse") { accepts.add("household"); accepts.add("electronics"); accepts.add("furniture"); }
+  if (amenity==="social_facility" && accepts.size===0) accepts.add("household");
+  if (accepts.size===0) accepts.add("household");
+
+  return {
+    id: el.id, name, address, website, phone, hours, open: true,
+    lat, lng, accepts: [...accepts], urgentNeed: [], capacity: 50,
+    distance: Math.round(haversineDistance(center.lat, center.lng, lat, lng) * 10) / 10,
+  };
+}
+
+async function fetchSitesFromOverpass(lat, lng) {
+  const r = 80000;
+  const q = `[out:json][timeout:30];(node["shop"="charity"](around:${r},${lat},${lng});node["amenity"="food_bank"](around:${r},${lat},${lng});node["amenity"="social_facility"](around:${r},${lat},${lng});node["amenity"="clothes_bank"](around:${r},${lat},${lng});node["amenity"="reuse"](around:${r},${lat},${lng});way["shop"="charity"](around:${r},${lat},${lng});way["amenity"="food_bank"](around:${r},${lat},${lng}););out center;`;
+  const res = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    body: "data=" + encodeURIComponent(q),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  });
+  if (!res.ok) throw new Error("Overpass error");
+  return (await res.json()).elements;
+}
+
+// ── Results Page ─────────────────────────────────────────────────────────────
+function Results({ location, searchCoords, onBack, tweaks, onSearch }) {
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [selectedId, setSelectedId] = useState(null);
+  const [detailSite, setDetailSite] = useState(null);
+  const [viewMode, setViewMode] = useState(tweaks.defaultView || "split");
+  const [sortBy, setSortBy] = useState("distance");
+  const [distanceFilter, setDistanceFilter] = useState(10);
+  const [searchInput, setSearchInput] = useState(location);
+  const [sites, setSites] = useState([]);
+  const [sitesLoading, setSitesLoading] = useState(true);
+  const [isRealData, setIsRealData] = useState(false);
+  React.useEffect(() => { setSearchInput(location); }, [location]);
+  const handleInlineSearch = () => { if (searchInput.trim() && onSearch) onSearch(searchInput.trim()); };
+
+  const center = searchCoords || { lat: 40.740, lng: -73.990 };
+
+  // Mock fallback
+  const MOCK = [
+    { name:"Community Food Bank", address:"248 W Pico Blvd", accepts:["food","clothes","household"], urgentNeed:["food","toiletries"], phone:"(555) 100-0001", website:"https://feedingamerica.org", hours:"Mon–Sat 9am–5pm", open:true, capacity:72 },
+    { name:"Thrift & Give Shop", address:"1105 N Vermont Ave", accepts:["clothes","household","electronics","furniture"], urgentNeed:["clothes"], phone:"(555) 100-0002", website:"https://goodwill.org", hours:"Mon–Sun 10am–7pm", open:true, capacity:45 },
+    { name:"City Food Pantry", address:"3417 E Cesar Chavez Ave", accepts:["food","toiletries"], urgentNeed:["food","toiletries"], phone:"(555) 100-0003", website:"https://feedingamerica.org", hours:"Mon–Fri 8am–3pm", open:false, capacity:91 },
+    { name:"Salvation Army", address:"832 S San Pedro St", accepts:["food","clothes","household","toys","electronics"], urgentNeed:["toys","food"], phone:"(555) 100-0004", website:"https://salvationarmyusa.org", hours:"Mon–Sat 9am–6pm", open:true, capacity:38 },
+    { name:"Community Mission", address:"2612 W Washington Blvd", accepts:["food","clothes","toiletries"], urgentNeed:["clothes","toiletries"], phone:"(555) 100-0005", website:"https://communityaction.org", hours:"Daily 7am–9pm", open:true, capacity:60 },
+    { name:"Mobile Food Market", address:"501 N Maple Ave", accepts:["food"], urgentNeed:["food"], phone:"(555) 100-0006", website:"https://feedingamerica.org", hours:"Wed & Sat 10am–2pm", open:false, capacity:85 },
+    { name:"Toys & Books Drive", address:"75 N Lake Ave", accepts:["toys"], urgentNeed:["toys"], phone:"(555) 100-0007", website:"https://toysfortots.org", hours:"Mon–Fri 10am–4pm", open:true, capacity:22 },
+  ];
+  const locParts = location.split(",").map(s => s.trim()).filter(Boolean);
+  const cityStr = locParts.length >= 3 ? locParts.slice(1,3).join(", ") : locParts.slice(1).join(", ");
+  const mockSites = MOCK.map((t, i) => ({
+    ...t, id: i + 1,
+    address: cityStr ? `${t.address}, ${cityStr}` : t.address,
+    lat: center.lat + [0.004,-0.009,0.013,-0.004,0.018,-0.015,0.022][i],
+    lng: center.lng + [-0.008,0.006,0.004,-0.015,-0.003,0.012,0.018][i],
+    distance: parseFloat((0.3 + i * 0.35).toFixed(1)),
+  }));
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setSitesLoading(true);
+    setIsRealData(false);
+    setSites([]);
+    fetchSitesFromOverpass(center.lat, center.lng)
+      .then(elements => {
+        if (cancelled) return;
+        const mapped = elements
+          .map(el => mapOverpassElement(el, center))
+          .filter(Boolean)
+          .filter(s => s.distance < 50)
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 25)
+          .map((s, i) => ({ ...s, id: i + 1 }));
+        const finalSites = mapped.length > 0 ? mapped : mockSites;
+        setSites(finalSites);
+        setIsRealData(mapped.length > 0);
+        const best = [10, 25, 50].find(d => finalSites.some(s => s.distance < d)) ?? 50;
+        setDistanceFilter(best);
+      })
+      .catch(() => { if (!cancelled) { setSites(mockSites); setIsRealData(false); } })
+      .finally(() => { if (!cancelled) setSitesLoading(false); });
+    return () => { cancelled = true; };
+  }, [center.lat, center.lng]);
+
+  const filtered = sites
+    .filter(s => s.distance < distanceFilter)
+    .filter(s => activeCategory === "all" || s.accepts.includes(activeCategory))
+
+    .sort((a,b) => {
+      if (sortBy === "distance") return a.distance - b.distance;
+      if (sortBy === "urgent") return (b.urgentNeed.length - a.urgentNeed.length) || (a.distance - b.distance);
+      if (sortBy === "match" && activeCategory !== "all")
+        return (b.accepts.includes(activeCategory)?1:0) - (a.accepts.includes(activeCategory)?1:0) || (a.distance - b.distance);
+      return a.distance - b.distance;
+    });
+
+  const urgentCount = filtered.filter(s => s.urgentNeed.length > 0 && s.open).length;
+
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", background:"var(--bg)" }}>
+      {/* Header */}
+      <header style={{
+        background:"linear-gradient(180deg, var(--surface) 0%, var(--bg2) 100%)",
+        borderBottom:"1px solid var(--border)",
+        padding:"0 20px", position:"sticky", top:0, zIndex:100,
+      }}>
+        <div style={{ maxWidth:1100, margin:"0 auto" }}>
+
+          {/* Top row: back + logo + view toggle */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 0 10px" }}>
+            <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer",
+              padding:"4px 6px", color:"var(--text2)", fontSize:18, lineHeight:1 }}>←</button>
+            <div style={{ flex:1, minWidth:0 }}>
+              <ColorfulLogo size={20} />
+            </div>
+            <div style={{ display:"flex", background:"var(--bg2)", borderRadius:8, padding:2, gap:2, flexShrink:0 }}>
+              {[{v:"list",icon:"≡"},{v:"split",icon:"⊞"},{v:"map",icon:"⬡"}].map(({v,icon})=>(
+                <button key={v} onClick={()=>setViewMode(v)} style={{
+                  background: viewMode===v ? "var(--surface)" : "none",
+                  border:"none", borderRadius:6, padding:"4px 10px",
+                  cursor:"pointer", fontSize:14, color: viewMode===v ? "var(--text)" : "var(--text2)",
+                  boxShadow: viewMode===v ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
+                }}>{icon}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Search bar row */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, paddingBottom:12 }}>
+            <div style={{
+              flex:1, display:"flex", alignItems:"center",
+              background:"var(--surface)", border:"1.5px solid var(--border)",
+              borderRadius:99, padding:"5px 5px 5px 14px",
+              boxShadow:"inset 0 1px 4px rgba(42,31,20,0.07)",
+            }}>
+              <Pin size={14} inline />
+              <input
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleInlineSearch()}
+                style={{
+                  flex:1, border:"none", background:"transparent",
+                  fontSize:16, color:"var(--text)", fontWeight:500,
+                  fontFamily:"var(--font-body)", outline:"none",
+                  padding:"2px 10px",
+                }}
+                placeholder="Enter address or zip code..."
+              />
+              <button onClick={handleInlineSearch} style={{
+                background:"var(--accent)", color:"#fff", border:"none",
+                borderRadius:99, padding:"7px 18px",
+                fontSize:13, fontWeight:600, cursor:"pointer",
+                fontFamily:"var(--font-body)", flexShrink:0,
+                letterSpacing:"0.02em",
+              }}>Search</button>
+            </div>
+            <span style={{ fontSize:14, color:"var(--text2)", whiteSpace:"nowrap", flexShrink:0 }}>
+              <strong style={{ color:"var(--text)", fontWeight:700 }}>{filtered.length}</strong> sites found
+            </span>
+          </div>
+
+          {/* Category filters + controls on same row */}
+          <div style={{ display:"flex", alignItems:"center", gap:0, paddingBottom:13 }}>
+            <div style={{
+              display:"flex", gap:6, flex:1, overflowX:"auto",
+              scrollbarWidth:"none", msOverflowStyle:"none",
+            }}>
+              {CATEGORIES.map(cat => (
+                <CategoryChip key={cat.id} cat={cat} active={activeCategory===cat.id}
+                  onClick={()=>setActiveCategory(cat.id)} />
+              ))}
+            </div>
+            <div style={{
+              display:"flex", gap:10, alignItems:"center", flexShrink:0,
+              borderLeft:"1.5px solid var(--border)", paddingLeft:14, marginLeft:10,
+            }}>
+              <select value={distanceFilter} onChange={e=>setDistanceFilter(Number(e.target.value))} style={{
+                fontSize:14, border:"1px solid var(--border)", borderRadius:8,
+                padding:"5px 10px", background:"var(--bg2)", color:"var(--text)",
+                fontFamily:"var(--font-body)", cursor:"pointer",
+              }}>
+                <option value={10}>Within 10mi</option>
+                <option value={25}>Within 25mi</option>
+                <option value={50}>Within 50mi</option>
+              </select>
+              <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{
+                fontSize:14, border:"1px solid var(--border)", borderRadius:8,
+                padding:"5px 10px", background:"var(--bg2)", color:"var(--text)",
+                fontFamily:"var(--font-body)", cursor:"pointer",
+              }}>
+                <option value="distance">Nearest first</option>
+                <option value="urgent">Most urgent</option>
+                <option value="match">Best match</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+      </header>
+
+      {/* Main content */}
+      <div style={{ flex:1, maxWidth:1100, width:"100%", margin:"0 auto",
+        padding: "16px 16px", display:"flex", gap:16,
+        flexDirection: viewMode==="map" ? "column" : "row" }}>
+
+        {/* List panel */}
+        {(viewMode==="list" || viewMode==="split") && (
+          <div style={{
+            flex: viewMode==="split" ? "0 0 380px" : "1",
+            display:"flex", flexDirection:"column", gap:10,
+            maxHeight: viewMode==="split" ? "calc(100vh - 200px)" : "none",
+            overflowY: viewMode==="split" ? "auto" : "visible",
+            scrollbarWidth:"thin",
+          }}>
+            {/* Data source badge */}
+            {!sitesLoading && (
+              <div style={{
+                display:"flex", alignItems:"center", gap:6, padding:"6px 10px",
+                borderRadius:8, fontSize:12, fontWeight:500,
+                background: isRealData ? "oklch(95% 0.04 245)" : "var(--bg2)",
+                color: isRealData ? "oklch(40% 0.16 245)" : "var(--text2)",
+                border: `1px solid ${isRealData ? "oklch(85% 0.08 245)" : "var(--border)"}`,
+                alignSelf:"flex-start",
+              }}>
+                <span style={{ width:7, height:7, borderRadius:"50%", flexShrink:0,
+                  background: isRealData ? "oklch(52% 0.19 245)" : "var(--text2)" }} />
+                {isRealData ? "Live data · OpenStreetMap" : "Sample data · Connect to internet for live results"}
+              </div>
+            )}
+
+            {sitesLoading ? (
+              /* Skeleton cards */
+              Array.from({length: 4}).map((_, i) => (
+                <div key={i} style={{
+                  background:"var(--surface)", border:"1px solid var(--border)",
+                  borderRadius:"var(--radius)", overflow:"hidden",
+                  animation:"pulse 1.4s ease-in-out infinite",
+                  animationDelay:`${i * 0.15}s`,
+                }}>
+                  <div style={{ height:90, background:"var(--bg2)" }} />
+                  <div style={{ padding:"14px 16px", display:"flex", flexDirection:"column", gap:8 }}>
+                    <div style={{ height:18, width:"65%", background:"var(--bg2)", borderRadius:6 }} />
+                    <div style={{ height:13, width:"45%", background:"var(--bg2)", borderRadius:6 }} />
+                    <div style={{ display:"flex", gap:6, marginTop:4 }}>
+                      <div style={{ height:22, width:60, background:"var(--bg2)", borderRadius:99 }} />
+                      <div style={{ height:22, width:50, background:"var(--bg2)", borderRadius:99 }} />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : filtered.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"40px 20px", color:"var(--text2)" }}>
+                <div style={{ fontSize:36, marginBottom:12 }}>🔍</div>
+                <p style={{ fontWeight:600 }}>No sites found</p>
+                <p style={{ fontSize:13, marginTop:4 }}>Try adjusting your filters or location.</p>
+              </div>
+            ) : filtered.map((site, i) => (
+              <SiteCard key={site.id} site={site} selected={selectedId===site.id}
+                activeCategory={activeCategory}
+                compact={viewMode==="split"}
+                index={i + 1}
+                onClick={()=>{ setSelectedId(site.id); setDetailSite(site); }} />
+            ))}
+          </div>
+        )}
+
+        {/* Map panel */}
+        {(viewMode==="map" || viewMode==="split") && (
+          <div style={{
+            flex:1,
+            minHeight: viewMode==="map" ? "calc(100vh - 220px)" : 420,
+            height: viewMode==="split" ? "calc(100vh - 220px)" : undefined,
+            borderRadius:"var(--radius)", overflow:"hidden",
+            border:"1px solid var(--border)",
+          }}>
+            <MapView sites={filtered} center={center} selectedId={selectedId}
+              onSelect={(id)=>{ setSelectedId(id); setDetailSite(filtered.find(s=>s.id===id)||null); }} />
+          </div>
+        )}
+      </div>
+
+      {/* Detail drawer */}
+      {detailSite && (
+        <SiteDetail site={detailSite} activeCategory={activeCategory}
+          onClose={()=>{ setDetailSite(null); setSelectedId(null); }} />
+      )}
+    </div>
+  );
+}
+
+// ── App Root ─────────────────────────────────────────────────────────────────
+function App() {
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "theme": "warm",
+    "defaultView": "split",
+    "showHowItWorks": true,
+    "accentColor": "#C96B3A",
+    "showUrgentBanner": true
+  }/*EDITMODE-END*/;
+
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  const [page, setPage] = useState("landing");
+  const [location, setLocation] = useState("");
+  const [showHow, setShowHow] = useState(false);
+
+  // Apply theme tweaks
+  useEffect(() => {
+    const root = document.documentElement;
+    if (tweaks.theme === "cool") {
+      root.style.setProperty("--bg", "#F0F5F4");
+      root.style.setProperty("--bg2", "#E4EDE9");
+      root.style.setProperty("--accent", "oklch(50% 0.14 168)");
+      root.style.setProperty("--accent-light", "oklch(93% 0.06 168)");
+      root.style.setProperty("--text", "#0F2920");
+      root.style.setProperty("--text2", "#3A6050");
+      root.style.setProperty("--border", "#CAD9D3");
+    } else if (tweaks.theme === "dark") {
+      root.style.setProperty("--bg", "#1A1510");
+      root.style.setProperty("--bg2", "#231E17");
+      root.style.setProperty("--surface", "#2A231A");
+      root.style.setProperty("--border", "#3D3328");
+      root.style.setProperty("--text", "#F5EFE6");
+      root.style.setProperty("--text2", "#9E8A74");
+      root.style.setProperty("--accent-light", "oklch(25% 0.08 38)");
+      root.style.setProperty("--accent2-light", "oklch(25% 0.08 148)");
+      root.style.setProperty("--urgent-light", "oklch(22% 0.08 22)");
+    } else {
+      // warm (default) — reset
+      root.style.setProperty("--bg", "#FAF7F2");
+      root.style.setProperty("--bg2", "#F2EDE4");
+      root.style.setProperty("--surface", "#FFFCF8");
+      root.style.setProperty("--border", "#E8DFD0");
+      root.style.setProperty("--text", "#2A1F14");
+      root.style.setProperty("--text2", "#6B5744");
+      root.style.setProperty("--accent-light", "oklch(94% 0.05 245)");
+      root.style.setProperty("--accent2-light", "oklch(93% 0.06 148)");
+      root.style.setProperty("--urgent-light", "oklch(94% 0.06 22)");
+    }
+  }, [tweaks.theme]);
+
+  const [searchCoords, setSearchCoords] = useState(null);
+  const [geocodeError, setGeocodeError] = useState("");
+
+  const handleSearch = async (addr, coords) => {
+    setGeocodeError("");
+    if (coords) {
+      setLocation(addr);
+      setSearchCoords(coords);
+      setPage("results");
+      return;
+    }
+    // Geocode via Nominatim
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&countrycodes=us&format=json&limit=1`,
+        { headers: { "Accept-Language": "en" } }
+      );
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const { lat, lon, display_name } = data[0];
+        const shortName = display_name.split(",").slice(0, 3).join(",");
+        setLocation(shortName);
+        setSearchCoords({ lat: parseFloat(lat), lng: parseFloat(lon) });
+        setPage("results");
+      } else {
+        setGeocodeError("Address not found. Please try a different address or zip code.");
+      }
+    } catch (e) {
+      // fallback — still navigate
+      setLocation(addr);
+      setSearchCoords(null);
+      setPage("results");
+    }
+  };
+
+  return (
+    <>
+      {page === "landing" && <Landing onSearch={handleSearch} geocodeError={geocodeError} />}
+      {page === "results" && (
+        <Results location={location} searchCoords={searchCoords} onBack={()=>setPage("landing")} tweaks={tweaks} onSearch={handleSearch} />
+      )}
+      {showHow && <HowItWorks onDismiss={()=>setShowHow(false)} />}
+      <TweaksPanel>
+        <TweakSection label="Appearance">
+          <TweakRadio label="Color theme"
+            value={tweaks.theme}
+            options={["warm","cool","dark"]}
+            onChange={v=>setTweak("theme",v)} />
+        </TweakSection>
+        <TweakSection label="Results View">
+          <TweakRadio label="Default layout"
+            value={tweaks.defaultView}
+            options={["list","split","map"]}
+            onChange={v=>setTweak("defaultView",v)} />
+          <TweakToggle label="Show urgent banner"
+            value={tweaks.showUrgentBanner}
+            onChange={v=>setTweak("showUrgentBanner",v)} />
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
