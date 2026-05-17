@@ -3,10 +3,8 @@ export const CATEGORIES = [
   { id: 'food',        label: 'Food',        color: '#E63946'   },
   { id: 'clothes',     label: 'Clothes',     color: '#3A86FF'   },
   { id: 'household',   label: 'Household',   color: '#F77F00'   },
-  { id: 'toiletries',  label: 'Toiletries',  color: '#43AA8B'   },
   { id: 'toys',        label: 'Toys',        color: '#F15BB5'   },
-  { id: 'electronics', label: 'Electronics', color: '#8338EC'   },
-  { id: 'furniture',   label: 'Furniture',   color: '#FFB703'   },
+  { id: 'furniture',   label: 'Furniture',   color: '#2A9D5C'   },
 ];
 
 export const LOGO_COLORS    = ['#E63946','#F77F00','#FFB703','#43AA8B','#118AB2','#3A86FF','#8338EC','#F15BB5','#E63946','#06A77D','#F77F00'];

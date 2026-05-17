@@ -1,7 +1,6 @@
 import { CATEGORIES } from '../constants/categories';
 import { safeUrl, safeTel } from '../utils/security';
 import Badge from './Badge';
-import CapacityBar from './CapacityBar';
 import Pin from './Pin';
 import SiteMapPreview from './SiteMapPreview';
 
@@ -45,21 +44,19 @@ export default function SiteDetail({ site, onClose, activeCategory }) {
             </div>
           )}
 
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, lineHeight: 1.2 }}>{site.name}</h2>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 33, fontWeight: 700, lineHeight: 1.2 }}>{site.name}</h2>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: 'var(--text2)' }}>{site.hours}</span>
+            <span style={{ fontSize: 20, color: 'var(--text2)' }}>{site.hours}</span>
           </div>
           {site.address && (
-            <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Pin size={12} inline /> {site.address}
+            <p style={{ fontSize: 20, color: 'var(--text2)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Pin size={18} inline /> {site.address}
             </p>
           )}
 
-          <CapacityBar pct={site.capacity} urgent={isUrgent} />
-
           <div style={{ marginTop: 18 }}>
-            <p style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600, marginBottom: 8, letterSpacing: '0.06em',
+            <p style={{ fontSize: 18, color: 'var(--text2)', fontWeight: 600, marginBottom: 8, letterSpacing: '0.06em',
               textTransform: 'uppercase' }}>Accepts</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {site.accepts.map(a => {
@@ -70,24 +67,42 @@ export default function SiteDetail({ site, onClose, activeCategory }) {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 }}>
-            <a href={safeTel(site.phone) ?? '#'} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              padding: '12px', borderRadius: 10, background: 'var(--bg2)',
-              color: 'var(--text)', textDecoration: 'none', fontSize: 13, fontWeight: 500,
-              border: '1px solid var(--border)',
-            }}>📞 Call</a>
-            <a href={safeUrl(site.website) ?? '#'} target="_blank" rel="noopener noreferrer" style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              padding: '12px', borderRadius: 10, background: 'var(--bg2)',
-              color: 'var(--text)', textDecoration: 'none', fontSize: 13, fontWeight: 500,
-              border: '1px solid var(--border)',
-            }}>🌐 Website</a>
+            {site.phone ? (
+              <a href={safeTel(site.phone)} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '12px', borderRadius: 10, background: 'var(--bg2)',
+                color: 'var(--text)', textDecoration: 'none', fontSize: 20, fontWeight: 500,
+                border: '1px solid var(--border)',
+              }}>📞 {site.phone}</a>
+            ) : (
+              <span style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '12px', borderRadius: 10, background: 'var(--bg2)',
+                color: 'var(--text2)', fontSize: 20, fontWeight: 500,
+                border: '1px solid var(--border)', opacity: 0.45, cursor: 'not-allowed',
+              }}>📞 No phone</span>
+            )}
+            {site.website ? (
+              <a href={safeUrl(site.website)} target="_blank" rel="noopener noreferrer" style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '12px', borderRadius: 10, background: 'var(--bg2)',
+                color: 'var(--text)', textDecoration: 'none', fontSize: 20, fontWeight: 500,
+                border: '1px solid var(--border)',
+              }}>🌐 Website</a>
+            ) : (
+              <span style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '12px', borderRadius: 10, background: 'var(--bg2)',
+                color: 'var(--text2)', fontSize: 20, fontWeight: 500,
+                border: '1px solid var(--border)', opacity: 0.45, cursor: 'not-allowed',
+              }}>🌐 Website</span>
+            )}
             <a href={`https://maps.google.com/?q=${encodeURIComponent(site.address)}`} target="_blank" rel="noopener"
               style={{
                 gridColumn: '1/-1', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 padding: '14px', borderRadius: 10, background: 'var(--accent)',
-                color: '#fff', textDecoration: 'none', fontSize: 14, fontWeight: 600,
-              }}><Pin size={16} light /> Get Directions</a>
+                color: '#fff', textDecoration: 'none', fontSize: 21, fontWeight: 600,
+              }}><Pin size={22} light /> Get Directions</a>
           </div>
         </div>
       </div>

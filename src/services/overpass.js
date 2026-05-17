@@ -42,8 +42,8 @@ export function mapOverpassElement(el, center) {
   };
 }
 
-export async function fetchSitesFromOverpass(lat, lng) {
-  const r = 80000; // ~50mi — UI filter controls the visible cutoff
+export async function fetchSitesFromOverpass(lat, lng, radiusMiles = 50) {
+  const r = Math.round(radiusMiles * 1609.34);
   const q = [
     `[out:json][timeout:30];(`,
     `node["shop"="charity"](around:${r},${lat},${lng});`,

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { CATEGORIES } from '../constants/categories';
-import { buildMockSites } from '../mocks/sites';
 import { fetchSitesFromOverpass, mapOverpassElement } from '../services/overpass';
 import ColorfulLogo from '../components/ColorfulLogo';
 import CategoryChip from '../components/CategoryChip';
 import SiteCard from '../components/SiteCard';
 import SiteDetail from '../components/SiteDetail';
 import MapView from '../components/MapView';
+import Footer from '../components/Footer';
+import JoinListModal from '../components/JoinListModal';
 
 export default function Results({ location, searchCoords, onBack, tweaks, onSearch }) {
   const [activeCategory, setActiveCategory] = useState('all');
@@ -15,6 +16,7 @@ export default function Results({ location, searchCoords, onBack, tweaks, onSear
   const [viewMode, setViewMode] = useState(tweaks.defaultView || 'split');
   const [sortBy, setSortBy] = useState('distance');
   const [distanceFilter, setDistanceFilter] = useState(10);
+  const [showJoinList, setShowJoinList] = useState(false);
   const [searchInput, setSearchInput] = useState(location);
   const [sites, setSites] = useState([]);
   const [sitesLoading, setSitesLoading] = useState(true);
@@ -34,39 +36,35 @@ export default function Results({ location, searchCoords, onBack, tweaks, onSear
     setIsRealData(false);
     setSites([]);
 
-    const mockSites = buildMockSites(center, location);
-
-    fetchSitesFromOverpass(center.lat, center.lng)
+    fetchSitesFromOverpass(center.lat, center.lng, distanceFilter)
       .then(elements => {
         if (cancelled) return;
         const mapped = elements
           .map(el => mapOverpassElement(el, center))
           .filter(Boolean)
-          .filter(s => s.distance < 50)
+          .filter(s => s.address !== 'Address unavailable')
+          .filter(s => s.distance < distanceFilter)
           .sort((a, b) => a.distance - b.distance)
-          .slice(0, 25)
           .map((s, i) => ({ ...s, id: i + 1 }));
-        const finalSites = mapped.length > 0 ? mapped : mockSites;
-        setSites(finalSites);
+        setSites(mapped);
         setIsRealData(mapped.length > 0);
-        // Auto-expand to the tightest radius that has results
-        const best = [10, 25, 50].find(d => finalSites.some(s => s.distance < d)) ?? 50;
-        setDistanceFilter(best);
       })
-      .catch(() => { if (!cancelled) { setSites(mockSites); setIsRealData(false); } })
+      .catch(() => { if (!cancelled) { setSites([]); setIsRealData(false); } })
       .finally(() => { if (!cancelled) setSitesLoading(false); });
 
     return () => { cancelled = true; };
-  }, [center.lat, center.lng]);
+  }, [center.lat, center.lng, distanceFilter]);
 
   const filtered = sites
     .filter(s => s.distance < distanceFilter)
     .filter(s => activeCategory === 'all' || s.accepts.includes(activeCategory))
     .sort((a, b) => {
-      if (sortBy === 'distance') return a.distance - b.distance;
-      if (sortBy === 'urgent') return (b.urgentNeed.length - a.urgentNeed.length) || (a.distance - b.distance);
-      if (sortBy === 'match' && activeCategory !== 'all')
-        return (b.accepts.includes(activeCategory) ? 1 : 0) - (a.accepts.includes(activeCategory) ? 1 : 0) || (a.distance - b.distance);
+      if (sortBy === 'name') return a.name.localeCompare(b.name);
+      if (sortBy === 'has-info') {
+        const aHas = (a.phone || a.website) ? 1 : 0;
+        const bHas = (b.phone || b.website) ? 1 : 0;
+        return bHas - aHas || a.distance - b.distance;
+      }
       return a.distance - b.distance;
     });
 
@@ -82,10 +80,12 @@ export default function Results({ location, searchCoords, onBack, tweaks, onSear
             <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer',
               padding: '4px 6px', color: 'var(--text2)', fontSize: 18, lineHeight: 1 }}>←</button>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <ColorfulLogo size={20} />
+              <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                <ColorfulLogo size={20} />
+              </button>
             </div>
             <div style={{ display: 'flex', background: 'var(--bg2)', borderRadius: 8, padding: 2, gap: 2, flexShrink: 0 }}>
-              {[{ v: 'list', icon: '≡' }, { v: 'split', icon: '⊞' }, { v: 'map', icon: '⬡' }].map(({ v, icon }) => (
+              {[{ v: 'list', icon: '≡' }, { v: 'split', icon: '⊞' }].map(({ v, icon }) => (
                 <button key={v} onClick={() => setViewMode(v)} style={{
                   background: viewMode === v ? 'var(--surface)' : 'none',
                   border: 'none', borderRadius: 6, padding: '4px 10px',
@@ -94,6 +94,15 @@ export default function Results({ location, searchCoords, onBack, tweaks, onSear
                 }}>{icon}</button>
               ))}
             </div>
+            <button onClick={() => setShowJoinList(true)} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              fontSize: 13, fontWeight: 600, color: 'var(--text)',
+              background: 'transparent', border: '1.5px solid var(--border)', borderRadius: 99,
+              padding: '2px 17px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+            }}>
+              <img src="/images/joinlist.png" alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+              Join List
+            </button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12 }}>
@@ -147,8 +156,8 @@ export default function Results({ location, searchCoords, onBack, tweaks, onSear
                 fontFamily: 'var(--font-body)', cursor: 'pointer',
               }}>
                 <option value="distance">Nearest first</option>
-                <option value="urgent">Most urgent</option>
-                <option value="match">Best match</option>
+                <option value="name">Name (A–Z)</option>
+                <option value="has-info">Has contact info</option>
               </select>
             </div>
           </div>
@@ -231,6 +240,8 @@ export default function Results({ location, searchCoords, onBack, tweaks, onSear
         )}
       </div>
 
+      <Footer />
+      {showJoinList && <JoinListModal onClose={() => setShowJoinList(false)} />}
       {detailSite && (
         <SiteDetail site={detailSite} activeCategory={activeCategory}
           onClose={() => { setDetailSite(null); setSelectedId(null); }} />

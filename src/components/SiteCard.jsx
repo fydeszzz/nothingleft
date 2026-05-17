@@ -1,6 +1,5 @@
 import { CATEGORIES } from '../constants/categories';
 import Badge from './Badge';
-import CapacityBar from './CapacityBar';
 
 export default function SiteCard({ site, selected, onClick, activeCategory, compact, index }) {
   const isUrgent = site.urgentNeed.includes(activeCategory) ||
@@ -52,21 +51,18 @@ export default function SiteCard({ site, selected, onClick, activeCategory, comp
           </div>
         </div>
 
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+          {matchScore && <Badge label={`✓ ${matchScore}`} color="green" />}
+          {site.accepts.slice(0, 3).map(a => {
+            const cat = CATEGORIES.find(c => c.id === a);
+            return cat ? <Badge key={a} label={cat.label} hexColor={cat.color || undefined} color={cat.color ? undefined : 'neutral'} /> : null;
+          })}
+          {site.accepts.length > 3 && <Badge label={`+${site.accepts.length - 3} more`} color="neutral" />}
+        </div>
         {!compact && (
-          <>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 10 }}>
-              {matchScore && <Badge label={`✓ ${matchScore}`} color="green" />}
-              {site.accepts.slice(0, 3).map(a => {
-                const cat = CATEGORIES.find(c => c.id === a);
-                return cat ? <Badge key={a} label={cat.label} hexColor={cat.color || undefined} color={cat.color ? undefined : 'neutral'} /> : null;
-              })}
-              {site.accepts.length > 3 && <Badge label={`+${site.accepts.length - 3} more`} color="neutral" />}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-              <span style={{ fontSize: 11, color: 'var(--text2)' }}>{site.hours}</span>
-            </div>
-            <CapacityBar pct={site.capacity} urgent={isUrgent} />
-          </>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--text2)' }}>{site.hours}</span>
+          </div>
         )}
       </div>
     </div>

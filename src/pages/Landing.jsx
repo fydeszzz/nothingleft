@@ -2,11 +2,14 @@ import { useState } from 'react';
 import ColorfulLogo from '../components/ColorfulLogo';
 import HeroCarousel from '../components/HeroCarousel';
 import Pin from '../components/Pin';
+import Footer from '../components/Footer';
+import JoinListModal from '../components/JoinListModal';
 
 export default function Landing({ onSearch, geocodeError }) {
   const [addr, setAddr] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showJoinList, setShowJoinList] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -50,9 +53,15 @@ export default function Landing({ onSearch, geocodeError }) {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
       <nav style={{ padding: '20px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <ColorfulLogo size={26} />
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button style={{ display: 'none' }}>Add my site</button>
-        </div>
+        <button onClick={() => setShowJoinList(true)} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 7,
+          fontSize: 13, fontWeight: 600, color: 'var(--text)',
+          background: 'transparent', border: '1.5px solid var(--border)', borderRadius: 99,
+          padding: '2px 17px', cursor: 'pointer',
+        }}>
+          <img src="/images/joinlist.png" alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+          Join List
+        </button>
       </nav>
 
       <div style={{ position: 'relative', width: '100%', height: 'min(88vh, 960px)', minHeight: 560, overflow: 'hidden', background: '#1a1510' }}>
@@ -137,6 +146,8 @@ export default function Landing({ onSearch, geocodeError }) {
           ))}
         </div>
       </div>
+      <Footer />
+      {showJoinList && <JoinListModal onClose={() => setShowJoinList(false)} />}
     </div>
   );
 }

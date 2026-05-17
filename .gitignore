@@ -28,3 +28,6 @@ desktop.ini
 # dev temp
 *.local
 coverage/
+
+# Claude Code internal
+.claude/

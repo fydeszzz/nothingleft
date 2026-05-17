@@ -3,7 +3,7 @@ import L from 'leaflet';
 
 const ACCENT   = '#3B6FD4';
 const URGENT   = '#C0392B';
-const NEUTRAL  = '#7A8FA6';
+const NEUTRAL  = '#3B6FD4';
 
 function makeIcon(color, selected, label) {
   const size = selected ? 40 : 32;
